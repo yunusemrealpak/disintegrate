@@ -41,6 +41,11 @@ abstract final class DisintegrateProgram {
     );
   }
 
+  /// Number of float slots the shader declares after the engine's own.
+  ///
+  /// progress, drift.x, drift.y, cell, sweep, turbulence, scatter, seed.
+  static const int authoredFloats = 8;
+
   /// Float slot of the first authored uniform.
   ///
   /// The engine-provided `vec2 uSize` occupies the first two slots, but that
@@ -54,9 +59,10 @@ abstract final class DisintegrateProgram {
     if (slot != null) {
       return slot;
     }
-    // Seven authored floats: progress, drift.xy, cell, sweep, turbulence, seed.
+    // One past the last slot that exists if the engine's vec2 is not counted.
+    // It is a valid slot if it is, and throws if it is not.
     try {
-      shader.setFloat(8, 0);
+      shader.setFloat(authoredFloats + 1, 0);
       slot = 2;
     } on Object {
       slot = 0;

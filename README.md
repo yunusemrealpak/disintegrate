@@ -37,8 +37,9 @@ No setup beyond that — the shader ships with the package.
 Disintegrate(
   visible: _visible,
   duration: const Duration(milliseconds: 1100),
-  drift: const Offset(52, -58),      // where the dust goes, and how far
-  spread: const EdgeInsets.fromLTRB(6, 40, 44, 6),
+  drift: const Offset(30, -46),      // where the dust goes, and how far
+  scatter: 1.6,                      // how widely the grains fan out
+  spread: const EdgeInsets.fromLTRB(18, 60, 60, 10),
   onDissolved: _remove,
   child: card,
 )
@@ -106,6 +107,23 @@ float grain  = 1.0 - smoothstep(radius * 0.55, radius, length(withinCell));
 The mask is faded in over the first 20% of the cell's life. Without that, a
 widget at `progress = 0.01` would suddenly wear a halftone screen.
 
+### Grains need their own heading, too
+
+Moving every grain along the same vector is a translation with holes punched in
+it, however fine the grain is. Each cell gets its own heading, rotated out of
+`drift` by up to `scatter` radians, and its own speed:
+
+```glsl
+float angle = (rndHeading - 0.5) * uScatter;
+vec2 heading = rotate(dir, angle);
+float speed = mix(0.4, 1.8, rndSpeed);
+vec2 disp = heading * length(drift) * speed * travel;
+```
+
+`travel` eases *out* — `1 - (1 - local)²`. Grains break away quickly and then
+coast, which is what letting go of something looks like; accelerating the whole
+way looks like the surface is being pushed.
+
 ### Dust needs somewhere to go
 
 A shader filter can only paint inside the surface it is handed, so by default
@@ -129,6 +147,7 @@ cards give up their margins and the list looks unchanged.
 | `particleSize` | logical px | small reads as dust, large as debris |
 | `sweep` | `0..1` | 0 dissolves everything at once, 1 sweeps it along `drift` |
 | `turbulence` | logical px | how far grains wander sideways |
+| `scatter` | radians | how widely headings fan out from `drift` |
 | `seed` | `double` | which grains leave first |
 | `spread` | `EdgeInsets` | room for the dust, see above |
 
@@ -142,6 +161,18 @@ At `progress == 0` the widget returns its child untouched: no filter, no shader,
 no extra layer. At `progress == 1` it keeps the child laid out and mounted but
 stops painting it, so scroll positions and state survive a full dissolve. There
 is a test for both.
+
+### The trap that cost the most time
+
+`ImageFilter.shader` compares equal when it wraps the same `FragmentShader`,
+and `ImageFiltered` skips repainting when its filter has not changed. Mutating
+one shader's uniforms in place therefore updates them correctly and **never
+reaches the screen**: the widget sits there intact, and then a scroll — or any
+unrelated repaint of the subtree — makes the whole dissolve appear at once.
+
+The fix is to hand over a different instance each time. This package keeps two
+shaders and alternates between them, so there is no per-frame allocation and no
+question of disposing something a layer still references.
 
 ## Requirements
 

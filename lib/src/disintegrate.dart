@@ -20,6 +20,7 @@ class DisintegrateEffect extends StatefulWidget {
     this.particleSize = 3,
     this.sweep = 0.35,
     this.turbulence = 22,
+    this.scatter = 1.2,
     this.seed = 0,
     this.spread = EdgeInsets.zero,
     required this.child,
@@ -40,6 +41,12 @@ class DisintegrateEffect extends StatefulWidget {
   /// How far particles wander sideways, in logical pixels.
   final double turbulence;
 
+  /// How widely the grains fan out from [drift], in radians.
+  ///
+  /// At 0 every grain travels the same heading, which is a translation with
+  /// holes in it however fine the grain is. The spread is what makes it scatter.
+  final double scatter;
+
   /// Changes which particles leave first. Two widgets with the same seed
   /// dissolve identically, which is rarely what you want in a list.
   final double seed;
@@ -59,14 +66,24 @@ class DisintegrateEffect extends StatefulWidget {
 }
 
 class _DisintegrateEffectState extends State<DisintegrateEffect> {
-  ui.FragmentShader? _shader;
+  /// Two shaders, used on alternate updates.
+  ///
+  /// `ImageFilter.shader` compares equal when it wraps the same
+  /// [ui.FragmentShader], and `ImageFiltered` skips repainting when its filter
+  /// has not changed. Mutating one shader in place therefore updates the
+  /// uniforms without ever reaching the screen: the widget sits there intact
+  /// until something unrelated - a scroll, a rebuild elsewhere - repaints the
+  /// subtree, and then the whole dissolve appears at once. Handing over a
+  /// different instance each time is what makes the frame land.
+  final List<ui.FragmentShader> _shaders = <ui.FragmentShader>[];
+  int _buffer = 0;
 
   @override
   void initState() {
     super.initState();
     final ui.FragmentProgram? program = DisintegrateProgram.cached;
     if (program != null) {
-      _shader = program.fragmentShader();
+      _adopt(program);
       return;
     }
     DisintegrateProgram.preload().then(
@@ -74,7 +91,7 @@ class _DisintegrateEffectState extends State<DisintegrateEffect> {
         if (!mounted) {
           return;
         }
-        setState(() => _shader = program.fragmentShader());
+        setState(() => _adopt(program));
       },
       // A backend without shader filters, or a bundle without the asset. The
       // fallback below already covers it, so this must not surface as an error.
@@ -82,9 +99,27 @@ class _DisintegrateEffectState extends State<DisintegrateEffect> {
     );
   }
 
+  void _adopt(ui.FragmentProgram program) {
+    _shaders
+      ..add(program.fragmentShader())
+      ..add(program.fragmentShader());
+  }
+
+  @override
+  void didUpdateWidget(DisintegrateEffect oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Flipped here rather than in build so that build stays a pure function of
+    // the widget and this state.
+    if (widget.progress != oldWidget.progress) {
+      _buffer ^= 1;
+    }
+  }
+
   @override
   void dispose() {
-    _shader?.dispose();
+    for (final ui.FragmentShader shader in _shaders) {
+      shader.dispose();
+    }
     super.dispose();
   }
 
@@ -109,7 +144,9 @@ class _DisintegrateEffectState extends State<DisintegrateEffect> {
       );
     }
 
-    final ui.FragmentShader? shader = _shader;
+    final ui.FragmentShader? shader = _shaders.isEmpty
+        ? null
+        : _shaders[_buffer];
     if (shader == null || !DisintegrateProgram.isSupported) {
       // Still loading, or a backend without shader filters. Fading is not the
       // effect, but it is the same beginning and end, so nothing jumps.
@@ -133,7 +170,8 @@ class _DisintegrateEffectState extends State<DisintegrateEffect> {
       ..setFloat(slot + 3, widget.particleSize * dpr)
       ..setFloat(slot + 4, widget.sweep.clamp(0.0, 1.0))
       ..setFloat(slot + 5, widget.turbulence * dpr)
-      ..setFloat(slot + 6, widget.seed);
+      ..setFloat(slot + 6, widget.scatter)
+      ..setFloat(slot + 7, widget.seed);
 
     return IgnorePointer(
       child: ImageFiltered(
@@ -163,6 +201,7 @@ class Disintegrate extends StatefulWidget {
     this.particleSize = 3,
     this.sweep = 0.35,
     this.turbulence = 22,
+    this.scatter = 1.2,
     this.seed = 0,
     this.spread = EdgeInsets.zero,
     this.onDissolved,
@@ -186,6 +225,10 @@ class Disintegrate extends StatefulWidget {
   final double particleSize;
   final double sweep;
   final double turbulence;
+
+  /// See [DisintegrateEffect.scatter].
+  final double scatter;
+
   final double seed;
 
   /// See [DisintegrateEffect.spread].
@@ -251,6 +294,7 @@ class _DisintegrateState extends State<Disintegrate>
         particleSize: widget.particleSize,
         sweep: widget.sweep,
         turbulence: widget.turbulence,
+        scatter: widget.scatter,
         seed: widget.seed,
         spread: widget.spread,
         child: child!,

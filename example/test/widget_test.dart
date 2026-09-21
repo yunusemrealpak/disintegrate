@@ -18,7 +18,9 @@ void main() {
     // The first pump settles the tap and starts the controller; only the second
     // one advances it. Skipping it samples the animation at zero.
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1600));
+    // Late enough that even the last row to start is visibly on its way: rows
+    // are staggered by up to 45% of the timeline.
+    await tester.pump(const Duration(milliseconds: 2600));
 
     final Iterable<DisintegrateEffect> effects = tester
         .widgetList<DisintegrateEffect>(find.byType(DisintegrateEffect));

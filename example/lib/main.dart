@@ -19,12 +19,15 @@ class DisintegrateDemo extends StatelessWidget {
     return MaterialApp(
       title: 'disintegrate',
       debugShowCheckedModeBanner: false,
+      // Light on purpose. Dust is dark, and dark grains on a dark screen are
+      // indistinguishable from holes in the surface - the effect was there the
+      // whole time, it just could not be seen.
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0B0B0D),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFE0B341),
-          surface: Color(0xFF15151A),
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF1F1F4),
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF16161A),
+          surface: Colors.white,
         ),
         useMaterial3: true,
       ),
@@ -73,8 +76,8 @@ class _RosterPageState extends State<RosterPage>
   // is why a snap that takes out half the list still costs a single animation.
   late final AnimationController _snap = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2800),
-    reverseDuration: const Duration(milliseconds: 1600),
+    duration: const Duration(milliseconds: 3400),
+    reverseDuration: const Duration(milliseconds: 1800),
   );
 
   final math.Random _random = math.Random(7);
@@ -138,13 +141,15 @@ class _RosterPageState extends State<RosterPage>
                       DisintegrateEffect(
                         progress: _progressFor(index),
                         seed: index * 31.7,
-                        drift: const Offset(52, -58),
-                        particleSize: 1.4,
-                        turbulence: 34,
+                        drift: const Offset(30, -46),
+                        particleSize: 1.3,
+                        turbulence: 46,
+                        scatter: 1.6,
                         // The gap between rows is handed to the effect so the
-                        // dust has somewhere to go; the card gives up its own
-                        // margin in exchange and the layout looks the same.
-                        spread: const EdgeInsets.fromLTRB(6, 40, 44, 6),
+                        // dust has somewhere to go. It is generous because the
+                        // grains fan out, and dust that hits the edge of its
+                        // own surface just stops existing.
+                        spread: const EdgeInsets.fromLTRB(18, 60, 60, 10),
                         child: _MemberCard(member: _roster[index]),
                       ),
                 ),
@@ -158,10 +163,8 @@ class _RosterPageState extends State<RosterPage>
         listenable: _snap,
         builder: (BuildContext context, _) => FloatingActionButton.extended(
           onPressed: _toggleSnap,
-          backgroundColor: _snapped
-              ? const Color(0xFF2A2A33)
-              : const Color(0xFFE0B341),
-          foregroundColor: _snapped ? Colors.white : Colors.black,
+          backgroundColor: const Color(0xFF16161A),
+          foregroundColor: Colors.white,
           icon: Icon(_snapped ? Icons.replay : Icons.back_hand_outlined),
           label: Text(
             _snapped ? 'BRING THEM BACK' : 'SNAP',
@@ -187,7 +190,7 @@ class _Header extends StatelessWidget {
             'CREW MANIFEST',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               letterSpacing: 3,
-              color: Colors.white54,
+              color: Color(0xFF9A9AA5),
             ),
           ),
           const SizedBox(height: 6),
@@ -215,11 +218,16 @@ class _MemberCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        // Light enough that the dust is visible against the background: dark
-        // grains on a dark screen are just holes.
-        color: const Color(0xFF1E1E27),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: <Widget>[
@@ -243,17 +251,21 @@ class _MemberCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    color: Color(0xFF16161A),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   member.role,
-                  style: const TextStyle(fontSize: 13, color: Colors.white54),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6B6B76),
+                  ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Colors.white24),
+          const Icon(Icons.chevron_right, color: Color(0xFFC2C2CB)),
         ],
       ),
     );

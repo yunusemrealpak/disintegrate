@@ -22,6 +22,11 @@ shader. Mimari gerekçeler `README.md` içinde — koda dokunmadan önce oku.
 - **`progress == 0` bedava olmalı.** Filtre, shader, ekstra layer yok — child
   doğrudan döner. `progress == 1`'de child layout'ta ve state'iyle kalır ama
   boyanmaz. İkisinin de testi var; bozarsan test düşer.
+- **Aynı `FragmentShader` nesnesini tekrar verme.** `ImageFilter.shader` aynı
+  shader'ı sarınca `==` eşit çıkıyor, `ImageFiltered` de repaint istemiyor:
+  uniform'lar güncelleniyor ama ekrana hiç gitmiyor, sonra scroll gibi alakasız
+  bir repaint'te efekt birden beliriyor. Paket iki shader tutup sırayla
+  kullanıyor; tampon `didUpdateWidget`'ta değişiyor ki `build` saf kalsın.
 - **Premultiplied alpha.** Sampler premultiplied veriyor; texel'i skalerle
   çarpmak premultiplied'ı korur. Ayrı ayrı rgb/a çarpma.
 
@@ -30,10 +35,14 @@ shader. Mimari gerekçeler `README.md` içinde — koda dokunmadan önce oku.
 | Değer | Neden |
 | --- | --- |
 | `sweep` varsayılan `0.35` | `0.75`'te yüzeyde sert bir bant geziyordu; silme efekti gibi duruyordu, dağılma gibi değil |
-| `fade` = `1 - smoothstep(0.2, 0.95, local)` | Daha geç başlayan fade, tozu katı bir kopya bandı gibi gösteriyordu |
-| grain yarıçapı `mix(0.72, 0.05, local)` | Küçülmeyen hücre = yüzeyde delik açılması = glitch görüntüsü |
-| grain maskesinin `smoothstep(0.0, 0.2, local)` ile açılması | Yoksa `progress = 0.01`'de widget aniden halftone deseni giyiyor |
-| Demo `particleSize: 1.4` | `2.5` iri ve köşeli duruyordu; toz değil moloz |
+| `scatter` varsayılan `1.2` rad | 0'da bütün taneler aynı vektörde gidiyor: delikli bir öteleme, saçılma değil |
+| hız `mix(0.4, 1.8, rnd)` | Tek hızda bulut dağılmıyor, blok hâlinde kayıyor |
+| `travel` = `1 - (1-local)²` (ease-out) | Hızlanan uçuş "itiliyor" gibi duruyor; bırakılma hissi için hızlı kopup yavaşlaması gerek |
+| `fade` = `1 - smoothstep(0.3, 1, local)` | Uzun kuyruk: taneler uçuşun çoğunda görünür kalıp incelerek kayboluyor |
+| grain yarıçapı `mix(0.78, 0.02, travel)` | Küçülmeyen hücre = yüzeyde delik açılması = glitch görüntüsü |
+| grain maskesinin `smoothstep(0.0, 0.18, local)` ile açılması | Yoksa `progress = 0.01`'de widget aniden halftone deseni giyiyor |
+| Demo `particleSize: 1.3` | `2.5` iri ve köşeli duruyordu; toz değil moloz |
+| Demo **açık tema** | Koyu zeminde koyu toz görünmüyor; efekt vardı ama okunmuyordu |
 
 **Toz kartın dışına çıkamaz.** Shader filtresi yalnız kendisine verilen yüzeyi
 boyayabiliyor. `spread` bunun için var ve **layout yer kaplar** — demo, kartların
